@@ -1,0 +1,351 @@
+<!doctype html>
+
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>HR Analytics Comment System</title>
+    <meta name="description" content="HR Analytics Comment System">
+    <meta name="author" content="Toby Siu">
+    <link rel="shortcut icon" href="{{ url_for('static', filename='favicon.ico') }}">
+    <style>
+        form {
+            display: inline-block;
+        }
+        .content {
+            margin: auto;
+            width: 96%;
+            min-width: 800px;
+            max-width: 1200px;
+        }
+        .toolbar {
+            display: inline-block;
+            width: 100%;
+        }
+        table {
+            border-collapse: collapse;
+            font-size: 12px;
+        }
+        th, td{
+            padding: 8px;
+        }
+        tr:nth-child(even){
+            background-color: #f2f2f2;
+        }
+        tr:hover {
+            -webkit-transition: background-color 0.3s ease-out; /* For Safari 3.1 to 6.0 */
+            transition: background-color 0.3s ease-out;
+            background-color: #ddd;
+        }
+        th {
+          padding-top: 12px;
+          padding-bottom: 12px;
+          text-align: left;
+          background-color: #4CAF50;
+          color: white;
+        }
+
+        input[type='submit'] {
+            background-color: #4CAF50; /* Green */
+            border: none;
+            color: white;
+            padding: 15px 32px;
+            text-align: center;
+            text-decoration: none;
+            display: inline-block;
+            font-size: 16px;
+            -webkit-transition: background-color 0.3s ease-out; /* For Safari 3.1 to 6.0 */
+            transition: background-color 0.3s ease-out;
+        }
+        input[type='submit']:hover {
+            background-color: #5CC05C; /* Green */
+        }
+        input[type='submit']:disabled {
+            background-color: #2D5B2D; /* Green */
+        }
+        #delete {
+            background-color: #db412f;
+        }
+        #delete:hover {
+            background-color: #f96b5a;
+        }
+        #delete:disabled {
+            background-color: #612e28;
+        }
+        input[type='text']:read-only {
+            border: none;
+            background: none;
+        }
+        input[type='checkbox'] {
+            display: block;
+            margin: auto;
+        }
+
+        textarea {
+            border: none;
+            background-color: #F7F7F7;
+            font-size: 12px;
+            resize: vertical;
+            width: 100%;
+        }
+        textarea:read-only{
+            resize: none;
+            background: none;
+        }
+        textarea:disabled {
+            background-color: #EBEBEB;
+        }
+        .download-button {
+            width: 35px;
+            height: 35px;
+            background-color: #4CAF50; /* Green */
+            border: none;
+            color: white;
+            -webkit-transition: background-color 0.3s ease-out; /* For Safari 3.1 to 6.0 */
+            transition: background-color 0.3s ease-out;
+        }
+        .download-button:hover {
+            background-color: #5CC05C;
+        }
+        .download-button svg {
+            fill: white;
+        }
+        .box {
+          background-color: #4CAF50;
+          color: white;
+          padding: 3px 0 3px 0;
+          width: 100%;
+          border: none;
+          font-size: 10px;
+          -webkit-appearance: button;
+          appearance: button;
+          outline: none;
+        }
+        .box option {
+          padding: 6px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="content">
+        <h3>{% if region|length %}Region: {{ region }} - {% endif %}{% if missing %}No entry found{% if hr_list %} for {{ hr_list|join(', ') }}{% endif %}{% if region|length %} in {{ region }}{% endif %}. {{ missing|join(', ') }} is required to add new entry.{% elif new %}New{% else %}{% if sort_by %}Sort by {{ sort_by }}{% endif %}View{% endif %}</h3>
+        <div class="toolbar">
+            <span style="float: left;">
+                <form id="hrform" method="POST">
+                    <input type="submit" {% if new %}value="Save" {% else %}id="updateBtn" value="Update" disabled{% endif %}>
+                    {% if not new %}<input type="submit" value="Delete" disabled id="delete">{% endif %}
+                </form>
+                {% if not new %}<input type="submit" value="Reset" id="reset_btn" style="margin-block-end: 1em;">{% endif %}
+            </span>
+            <form action="{{ url_for('download') }}" style="float: right;" target="_blank">
+                <input type="submit" value="Download CSV{% if region|length %} - Region {{ region }}{% endif %}">
+    {#            <input type="submit" value="Download {% if hr_list %}current HR{% else %}full{% endif %} CSV">#}
+    {#            {% for hr in hr_list %}#}
+    {#                <input type="hidden" name="hr" value="{{ hr }}" />#}
+    {#            {% endfor %}#}
+            </form>
+        </div>
+        <table>
+            <thead>
+                <tr>
+                    {% if not new %}
+                        <th style="width:4%">HR_Name
+    {#                    <select id="HR_Name" class="box">#}
+    {#                        <option value>-</option>#}
+    {#                        {% for hr in filters['HR_Name'] %}#}
+    {#                            <option value="{{ hr }}">{{ hr }}</option>#}
+    {#                        {% endfor %}#}
+    {#                    </select>#}
+                        </th>
+                    {% endif %}
+                <th style="width:{% if new %}25{% else %}22{% endif %}%">Job_Name
+                    {% if not new %}<select id="Job_Name" class="box">
+                        <option value="-">-</option>
+                        {% for job in filters['Job_Name'] %}
+                            <option value="{{ job }}">{{ job }}</option>
+                        {% endfor %}
+                    </select>{% endif %}
+                </th>
+                <th style="width:{% if new %}25{% else %}22{% endif %}%">CV_Name
+                    {% if not new %}<select id="CV_Name" class="box">
+                        <option value="-">-</option>
+                        {% for cv in filters['CV_Name'] %}
+                            <option value="{{ cv }}">{{ cv }}</option>
+                        {% endfor %}
+                    </select>{% endif %}
+                </th>
+                <th style="width:5%"></th>
+                <th style="width:5%"></th>
+                <th style="width:30%">Feedback</th>
+                <th style="width:{% if new %}10{% else %}7{% endif %}%">Date
+                    {% if not new %}<select id="Date" class="box">
+                        <option value="-">-</option>
+                        {% for date in filters['Date'] %}
+                            <option value="{{ date }}">{{ date }}</option>
+                        {% endfor %}
+                    </select>{% endif %}
+                </th>
+                {% if not new %}
+                    <th style="width:5%">Modify<input type="checkbox" id="all"></th>
+                {% endif %}
+                </tr>
+            </thead>
+            <tbody>
+                {% if new %}
+                    {% for entry in data %}
+                    <tr>
+                        <input class="insertData" type="hidden" name="Job_ID" form="hrform" value="{{ entry['Job_ID'] }}" />
+                        <input class="insertData" type="hidden" name="CV_ID" form="hrform" value="{{ entry['CV_ID'] }}" />
+                        <input class="insertData" type="hidden" name="HR_Name" form="hrform" value="{{ entry['HR_Name'] }}" />
+                        <td>
+                            <textarea class="insertData" rows="3" name="Job_Name" form="hrform" readonly>{{ entry["Job_Name"] }}</textarea>
+                        </td>
+                        <td>
+                            <textarea class="insertData" rows="3" name="CV_Name" form="hrform" readonly>{{ entry["CV_Name"] }}</textarea>
+                        </td>
+                        <td>
+                            <button class="download-button" data-url="{{ url_for('download_resume', cv_id=entry['CV_ID']) }}">CV</button>
+                        </td>
+                        <td>
+                            <button class="download-button" data-url="{{ url_for('download_zip', cv_id=entry['CV_ID']) }}">
+                                <svg viewBox="0 0 384.97 384.97">
+                                    <path d="M372.939,264.667c-6.641,0-12.03,5.39-12.03,12.03v84.212H24.061v-84.212c0-6.641-5.39-12.03-12.03-12.03
+                                        S0,270.056,0,276.697v96.242c0,6.641,5.39,12.03,12.03,12.03h360.909c6.641,0,12.03-5.39,12.03-12.03v-96.242
+                                        C384.97,270.056,379.58,264.667,372.939,264.667z"/>
+                                    <path d="M183.703,285.202c4.68,4.632,12.512,4.68,17.191,0l84.2-83.009c4.752-4.704,4.74-12.319,0-17.011
+                                        c-4.74-4.704-12.439-4.704-17.179,0l-63.46,62.558V12.03c0-6.641-5.438-12.03-12.151-12.03s-12.151,5.39-12.151,12.03v235.71
+                                        l-63.46-62.558c-4.752-4.704-12.439-4.704-17.179,0c-4.752,4.704-4.752,12.319,0,17.011L183.703,285.202z"/>
+                                </svg>
+                             </button>
+                        </td>
+                        <td>
+                            <textarea class="insertData" rows="3" name="Feedback" form="hrform">No feedback.</textarea>
+                        </td>
+                        <td>
+                            <textarea class="insertData" rows="3" name="Date" form="hrform" readonly>{{ date }}</textarea>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                {% else %}
+                    {% for id, entry in data.items() %}
+                    <tr>
+                        <td>{{ entry["HR_Name"] }}</td>
+                        <td>{{ entry["Job_Name"] }}</td>
+                        <td>{{ entry["CV_Name"] }}</td>
+                        <td>
+                            <button class="download-button" data-url="{{ url_for('download_resume', cv_id=entry['CV_ID']) }}">CV</button>
+                        </td>
+                        <td>
+                            <button class="download-button" data-url="{{ url_for('download_zip', cv_id=entry['CV_ID']) }}">
+                                <svg viewBox="0 0 384.97 384.97">
+                                    <path d="M372.939,264.667c-6.641,0-12.03,5.39-12.03,12.03v84.212H24.061v-84.212c0-6.641-5.39-12.03-12.03-12.03
+                                        S0,270.056,0,276.697v96.242c0,6.641,5.39,12.03,12.03,12.03h360.909c6.641,0,12.03-5.39,12.03-12.03v-96.242
+                                        C384.97,270.056,379.58,264.667,372.939,264.667z"/>
+                                    <path d="M183.703,285.202c4.68,4.632,12.512,4.68,17.191,0l84.2-83.009c4.752-4.704,4.74-12.319,0-17.011
+                                        c-4.74-4.704-12.439-4.704-17.179,0l-63.46,62.558V12.03c0-6.641-5.438-12.03-12.151-12.03s-12.151,5.39-12.151,12.03v235.71
+                                        l-63.46-62.558c-4.752-4.704-12.439-4.704-17.179,0c-4.752,4.704-4.752,12.319,0,17.011L183.703,285.202z"/>
+                                </svg>
+                             </button>
+                        </td>
+                        <td>
+                            <textarea class="feedback" rows="4" name="{{ id }}" form="hrform" id="{{ id }}" disabled>{{ entry.get("Feedback", "No feedback.") }}</textarea>
+                        </td>
+                        <td>{{ entry["Date"] }}</td>
+                        <td>{% if entry["HR_Name"] in hr_list %}<input class="select" type="checkbox" name="{{ id }}">{% endif %}</td>
+                    </tr>
+                    {% endfor %}
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
+    <script src="{{ url_for('static', filename='jquery.min.js') }}"></script>
+    <script>
+        $(document).ready(function(){
+            {% if not new %}
+                $("#all").change(function(){
+                    $(".select").prop("checked", this.checked).trigger("change");
+                });
+                $(".select").change(function(){
+                    const boxes = $(".select");
+                    $("#".concat(this.name)).prop('disabled', !this.checked);
+                    $('#updateBtn').prop('disabled', !boxes.filter(':checked').length);
+                    $('#delete').prop('disabled', !boxes.filter(':checked').length);
+                    $('#all').prop('checked', boxes.filter(':checked').length === boxes.length);
+                });
+                $("#reset_btn").click(function(){
+                    $(".box").each(function(){$(this).val("-")}).trigger("change");
+                });
+                {% if not new %}
+                    $(".box").change(function(){
+                        window.location = "{% if region|length %}/{{ region }}{% endif %}{% if hr_list %}/?HR_Name={{ hr_list|join('&HR_Name=') }}&{% else %}/?{% endif %}" + $(".box").map(function(){
+                            if (this.value !== '-') {return this.id+'='+escape(this.value);}
+                        }).get().join('&');
+                    });
+                    {% if filter %}
+                        {% for key, values in filter.items() %}
+                            $('#{{ key }}').val('{{ values[0]|safe }}');
+                        {% endfor %}
+                    {% endif %}
+                {% endif %}
+                $("#delete").click(function(){
+                    if (confirm("Click OK to delete selected item(s).")){
+                        $(".feedback").val('');
+                        return true
+                    } else {
+                        return false
+                    }
+                });
+                if ($('.select').length === 0) {
+                    $("#all").attr("disabled", true);
+                    $("#hrform").remove();
+                }
+            {% endif %}
+            $("#hrform input[type='submit']").click(function(){
+                if (this.value === "Delete"){
+                    $("#hrform").attr('action', '{{ url_for('delete') }}');
+                } else {
+                    $("#hrform").attr('action', '{% if new %}{{ url_for('insert') }}{% else %}{{ url_for('update') }}{% endif %}');
+                }
+            });
+            $('#hrform').submit(function(e){
+                e.preventDefault();
+                {% if new %}
+                    const data = $('tbody tr').map(function() {
+                        let obj = {};
+                        $(this).find('.insertData').each(function() {
+                            obj[this.name] = $(this).val();
+                        });
+                        return obj;
+                    }).get();
+                {% endif %}
+                const myJSON = {% if new %}JSON.stringify(data);{% else %}$(this).serialize();{% endif %}
+                $.ajax({
+                    type     : "POST",
+                    cache    : false,
+                    url      : $(this).attr('action'),
+                    {% if new %}contentType: "application/json",{% endif %}
+                    data     : myJSON,
+                    success  : function(responseText) {
+                        alert(responseText);
+                        {% if new %}window.location = "{% if region|length %}/{{ region }}{% endif %}/?" + {% for entry in data %}"Job_Name=" + escape("{{ entry['Job_Name']|safe }}") + {% endfor %}{% if hr_list %}"&HR_Name={{ hr_list|join('&HR_Name=') }}"{% endif %};{% else %}location.reload();{% endif %}
+                    }
+                });
+            });
+            $('.download-button').click(function(){
+                const cvURL = $(this).attr('data-url');
+                $.ajax({
+                    url: cvURL,
+                    statusCode: {
+                        404: function(responseObject) {
+                            alert(responseObject.responseText);
+                        }
+                    },
+                    success: function() {
+                        window.open(cvURL);
+                    },
+                });
+            });
+        });
+    </script>
+</body>
+</html>
